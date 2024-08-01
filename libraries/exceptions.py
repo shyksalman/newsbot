@@ -1,2 +1,14 @@
+class ElementNotFoundException(Exception):
+    ...
 
-class CustomException(Exception):
+
+class ElementNotVisibleException(Exception):
+    ...
+
+
+class TimeoutException(Exception):
+    ...
+
+
+class ErrorInResponseException(Exception):
+    ...
