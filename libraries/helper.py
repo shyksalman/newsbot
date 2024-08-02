@@ -15,7 +15,6 @@ def get_date_range(term):
     return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
 
 
-
 def get_work_item():
     search_phrase = os.getenv('SEARCH_PHRASE', 'Imran Khan')
     news_category = os.getenv('NEWS_CATEGORY', 'Awards')
@@ -23,20 +22,20 @@ def get_work_item():
     return search_phrase, news_category, months
 
 
-
- def check_amount_phrase(item: dict) -> None:
-        """
+def check_amount_phrase(item: dict):
+    """
         Set the search phrase count and check if the article contains mentions of money.
 
         Args:
             item (dict): Dictionary containing news article data.
             :param item:
-        """
-        title_description = f'{item["title"]} {item["description"]}' if item.get("description") else item['title']
-        item["phrase"] = len(re.findall(phrase, title_description, flags=re.IGNORECASE))
+    """
+    title_description = f'{item["title"]} {item["description"]}' if item.get("description") else item['title']
+    _phrase = get_work_item()
+    item["phrase"] = len(re.findall(_phrase[0], title_description, flags=re.IGNORECASE))
 
-        amount_pattern = r'\$[0-9,]+(\.[0-9]+)?|\b[0-9]+ dollars\b|\b[0-9]+ USD\b'
-        item["amount"] = 'Yes' if re.search(amount_pattern, title_description) else 'No'
+    amount_pattern = r'\$[0-9,]+(\.[0-9]+)?|\b[0-9]+ dollars\b|\b[0-9]+ USD\b'
+    item["amount"] = 'Yes' if re.search(amount_pattern, title_description) else 'No'
 
 
 def parse_date(date_text):
@@ -46,6 +45,7 @@ def parse_date(date_text):
         except ValueError:
             continue
     raise ValueError(f"Date format for '{date_text}' not recognized")
+
 
 def extract_dates(elements):
     """
@@ -58,8 +58,7 @@ def extract_dates(elements):
         list: List of extracted date strings.
     """
     return [
-        self.parse_date(element.find_element(by=By.XPATH, value=Locators.NewsArticle.DATE).text.strip())
+        parse_date(element.find_element(by=By.XPATH, value=Locators.NewsArticle.DATE).text.strip())
         for element in elements
         if element.find_element(by=By.XPATH, value=Locators.NewsArticle.DATE).text.strip()
     ]
-

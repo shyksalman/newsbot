@@ -36,12 +36,14 @@ class LosAngelesNews:
         Open a browser window and navigate to the given URL.
         """
         self.browser.open_available_browser(url="https://www.latimes.com/")
-        self.browser.wait_until_page_contains_element(Locators.Search.BUTTON)
 
     def search_phrase(self, phrase: str):
+        self.browser.wait_until_page_contains_element(Locators.Search.BUTTON)
         self.browser.click_button(Locators.Search.BUTTON)
-        self.browser.wait_until_page_contains_element(Locators.Search.INPUT)
-        self.browser.input_text_when_element_is_visible(Locators.Search.INPUT, phrase)
+        # self.browser.wait_until_page_contains_element(Locators.Search.INPUT)
+        # self.browser.input_text_when_element_is_visible(Locators.Search.INPUT, phrase)
+        self.browser.wait_until_element_is_visible(Locators.Search.INPUT, timeout=30)
+        self.browser.input_text(Locators.Search.INPUT, phrase)
         self.browser.click_button(Locators.Search.SUBMIT)
         self.browser.wait_until_page_contains_element(Locators.Search.RESULTS_FOR_TEXT)
         self.browser.does_page_contain_element(Locators.Search.NO_RESULTS.format(phrase=phrase))
@@ -52,8 +54,11 @@ class LosAngelesNews:
         sorty.find_element(By.XPATH, value=Locators.Sort.SELECT_OPTIONS_INPUT).click()
 
     def select_category(self, news_category: str) -> None:
-        self.browser.wait_until_element_is_visible(Locators.Category.SEE_ALL, timeout=30)
-        category = self.browser.find_element(Locators.Category.SEE_ALL)
+        # self.browser.wait_until_element_is_visible(Locators.Category.SEE_ALL, timeout=60)
+        # category = self.browser.find_element(Locators.Category.SEE_ALL)
+        # category.click()
+        category = self.browser.wait_until_element_is_visible(Locators.Category.SEE_ALL, timeout=60)
+        category = category.find_element(Locators.Category.SEE_ALL)
         category.click()
         category = self.browser.find_element(Locators.Category.SELECT_CATEGORY.format(news_category))
         category.click()
