@@ -11,7 +11,7 @@ class Locators:
     class Category:
         SEE_ALL = "(//button[@class='button see-all-button'])[1]"
         ENTERTAINMENT = "//input[@class='checkbox-input-element' and @value='00000163-01e3-d9e5-adef-33e330f30000']"
-        SELECT_CATEGORY = "//*[contains(text(), '')]"
+        SELECT_CATEGORY = "//span[text()='{name}']"
 
     class Sort:
         SELECT_OPTIONS = "//select[@class='select-input']"

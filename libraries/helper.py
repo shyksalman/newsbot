@@ -1,11 +1,9 @@
+import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
-from selenium.webdriver.common.by import By
-
-from resources.locators import Locators
-
+from libraries.exceptions import NoMatchFoundError
 
 def get_date_range(term):
     today = datetime.today()
@@ -17,8 +15,8 @@ def get_date_range(term):
 
 def get_work_item():
     search_phrase = os.getenv('SEARCH_PHRASE', 'Imran Khan')
-    news_category = os.getenv('NEWS_CATEGORY', 'Awards')
-    months = int(os.getenv('MONTHS'))
+    news_category = os.getenv('CATEGORY', 'Awards')
+    months = int(os.getenv('RANGE'))
     return search_phrase, news_category, months
 
 
@@ -38,27 +36,42 @@ def check_amount_phrase(item: dict):
     item["amount"] = 'Yes' if re.search(amount_pattern, title_description) else 'No'
 
 
-def parse_date(date_text):
-    for fmt in ('%B %d, %Y', '%b %d, %Y', '%b. %d, %Y'):
-        try:
-            return datetime.strptime(date_text, fmt).date()
-        except ValueError:
-            continue
-    raise ValueError(f"Date format for '{date_text}' not recognized")
+def parse_date(date_text: str) -> date:
+    try:
+        # Check if the date_text contains 'hours ago'
+        if 'hour' in date_text:
+            return datetime.now().date()
 
+        # Dynamically standardize month abbreviations
+        month_map = {
+            'Jan.': 'Jan', 'Feb.': 'Feb', 'Mar.': 'Mar', 'Apr.': 'Apr',
+            'Jun.': 'Jun', 'Jul.': 'Jul', 'Aug.': 'Aug', 'Sept.': 'Sep',
+            'Oct.': 'Oct', 'Nov.': 'Nov', 'Dec.': 'Dec'
+        }
 
-def extract_dates(elements):
-    """
-    Extracts text from a list of WebElement instances and returns a list of non-empty strings.
+        # Replace any variations with standard abbreviations
+        for long_month, short_month in month_map.items():
+            if long_month in date_text:
+                date_text = date_text.replace(long_month, short_month)
+                break
 
-    Args:
-        elements (list): List of WebElement instances.
+        # Try parsing absolute date formats
+        formats = [
+            '%B %d, %Y',
+            '%b %d, %Y',
+            '%b. %d, %Y',
+            '%d %b %Y',
+            '%d %B %Y'
+        ]
 
-    Returns:
-        list: List of extracted date strings.
-    """
-    return [
-        parse_date(element.find_element(by=By.XPATH, value=Locators.NewsArticle.DATE).text.strip())
-        for element in elements
-        if element.find_element(by=By.XPATH, value=Locators.NewsArticle.DATE).text.strip()
-    ]
+        # Attempt to parse date with each format
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_text, fmt).date()
+            except ValueError:
+                continue
+
+        # If none of the formats match, raise an error
+        raise NoMatchFoundError(f"Date format for {date_text} is not recognized")
+    except NoMatchFoundError as e:
+        logging.error(f"An error occurred while parsing date {date_text}: {e}")

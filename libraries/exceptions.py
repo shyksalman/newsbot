@@ -6,9 +6,13 @@ class ElementNotVisibleException(Exception):
     ...
 
 
-class TimeoutException(Exception):
+class ErrorInFetchingArticles(Exception):
     ...
 
 
-class ErrorInResponseException(Exception):
+class ErrorInDownloadException(Exception):
+    ...
+
+
+class NoMatchFoundError(ValueError):
     ...
