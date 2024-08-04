@@ -1,2 +1,18 @@
+class ElementNotFoundException(Exception):
+    ...
 
-class CustomException(Exception):
+
+class ElementNotVisibleException(Exception):
+    ...
+
+
+class ErrorInFetchingArticles(Exception):
+    ...
+
+
+class ErrorInDownloadException(Exception):
+    ...
+
+
+class NoMatchFoundError(ValueError):
+    ...
