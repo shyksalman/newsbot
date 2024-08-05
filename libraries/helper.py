@@ -3,7 +3,7 @@ import os
 import re
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
-from libraries.exceptions import NoMatchFoundError
+from libraries.exceptions import ParserError
 from dateutil import parser
 
 
@@ -12,7 +12,7 @@ def get_date_range(term):
     start_date = today.replace(day=1)
     end_date = (start_date - relativedelta(months=term - 1)).replace(day=1) if term > 1 else start_date
     end_date = end_date + relativedelta(months=1) - relativedelta(days=1)
-    return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
+    return end_date.strftime('%Y-%m-%d')
 
 
 def get_work_item():
@@ -40,7 +40,7 @@ def check_amount_phrase(title: str, desc: str) -> dict:
     return {"amount": amount, "phrase": phrase}
 
 
-def parse_date(date_text: str) -> date:
+def parse_date(date_text: str) -> date | None:
     try:
         # Check if the date_text contains 'hours ago'
         if 'hour' in date_text:
@@ -49,9 +49,7 @@ def parse_date(date_text: str) -> date:
             return datetime.now().date()
         else:
             return parser.parse(date_text).date()
-    except NoMatchFoundError as e:
+    except ParserError as e:
         logging.error(f"An error occurred while parsing date {date_text}: {e}")
+        return None
 
-
-if __name__ == "__main__":
-    check_amount_phrase("salman", "Imran Khan")

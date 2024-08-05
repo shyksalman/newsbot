@@ -2,7 +2,7 @@ import os
 import logging
 from RPA.HTTP import HTTP
 from RPA.Browser.Selenium import Selenium
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Any
 from dotenv import load_dotenv
 from openpyxl.workbook import Workbook
@@ -13,7 +13,8 @@ from resources.locators import Locators
 from libraries.models import ArticleModel
 from libraries.helper import get_date_range, check_amount_phrase, parse_date
 from libraries.exceptions import ErrorInDownloadException, ErrorInFetchingArticles
-from selenium.common.exceptions import NoSuchElementException, ElementNotVisibleException
+from selenium.common.exceptions import NoSuchElementException, ElementNotVisibleException, \
+    StaleElementReferenceException, TimeoutException, ElementClickInterceptedException, InvalidElementStateException
 
 load_dotenv()
 
@@ -40,6 +41,8 @@ class LosAngelesNews:
         """
         Open a browser window and navigate to the given URL.
         """
+        logging.info("Initializing bot...")
+        logging.info("Opening web browser https://www.latimes.com/")
         self.browser.open_available_browser(url="https://www.latimes.com/", maximized=True)
 
 
@@ -56,34 +59,51 @@ class NewsBot(LosAngelesNews):
         """
         Search for the given phrase and navigate to the results.
         """
+        logging.info(f"Searching for the phrase: {phrase}")
         try:
             self.browser.wait_until_page_contains_element(Locators.Search.BUTTON)
             self.browser.click_button(Locators.Search.BUTTON)
+            logging.info("Clicked on search button.")
+
             self.browser.wait_until_element_is_visible(Locators.Search.INPUT, timeout=30)
             self.browser.input_text(Locators.Search.INPUT, phrase)
+            logging.info(f"Entered phrase '{phrase}' in search input.")
+
             self.browser.click_button(Locators.Search.SUBMIT)
+            logging.info("Clicked on submit button.")
+
             self.browser.wait_until_page_contains_element(Locators.Search.RESULTS_FOR_TEXT)
             self.browser.does_page_contain_element(Locators.Search.NO_RESULTS.format(phrase=phrase))
-        except NoSuchElementException as e:
+            logging.info(f"Searched results for phrase: {phrase}")
+        except (NoSuchElementException, TimeoutException,
+                ElementNotVisibleException, StaleElementReferenceException,
+                ElementClickInterceptedException, InvalidElementStateException) as e:
             logging.error(f"An error occurred in {self.__class__.__name__}.{self.search_phrase.__name__}: {str(e)}")
 
+
     def newest_sort_by(self) -> None:
+        """
+        Sort search results by latest.
+        """
+        logging.info("Sorting search results by latest.")
         try:
-            """Sort search results by latest."""
             self.browser.wait_until_element_is_visible(Locators.Sort.SELECT_OPTIONS, timeout=30)
             sorty = self.browser.find_element(Locators.Sort.SELECT_OPTIONS)
             sorty.find_element(By.XPATH, value=Locators.Sort.SELECT_OPTIONS_INPUT).click()
-        except NoSuchElementException as e:
+            logging.info("Sorted search results by latest.")
+        except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
             logging.error(f"An error occurred in {self.__class__.__name__}.{self.newest_sort_by.__name__}: {str(e)}")
 
     def select_category(self, news_category: str) -> None:
+        logging.info(f"Selecting news category: {news_category}")
         try:
-            category = self.browser.find_element(Locators.Category.SEE_ALL).click()
-            category = self.browser.find_element(Locators.Category.SELECT_CATEGORY.format(name=news_category)).click()
-        except NoSuchElementException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.select_category().__name__}: {str(e)}")
+            self.browser.find_element(Locators.Category.SEE_ALL).click()
+            self.browser.find_element(Locators.Category.SELECT_CATEGORY.format(name=news_category)).click()
+            logging.info(f"Selected news category: {news_category}")
+        except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
+            logging.error(f"An error occurred in {self.__class__.__name__}.{self.select_category.__name__}: {str(e)}")
 
-    def get_field_data(self, element: WebElement, locator) -> str:
+    def get_field_data(self, element: WebElement, locator) -> str | None:
         """
         Get text data from a WebElement based on a locator.
 
@@ -94,12 +114,16 @@ class NewsBot(LosAngelesNews):
         Returns:
             str: The text data found.
         """
+        logging.info(f"Getting field data using locator: {locator}")
         try:
-            return element.find_element(by=By.XPATH, value=locator).text
-        except NoSuchElementException as e:
+            data = element.find_element(by=By.XPATH, value=locator).text
+            logging.info(f"Retrieved data: {data}")
+            return data
+        except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
             logging.error(f"An error occurred in {self.__class__.__name__}.{self.get_field_data.__name__}: {str(e)}")
+            return None
 
-    def download_images(self, element: WebElement, file_path) -> str:
+    def download_images(self, element: WebElement, file_path) -> str | None:
         """
         Download the profile picture associated with a news article.
 
@@ -110,28 +134,28 @@ class NewsBot(LosAngelesNews):
         Returns:
             str: The file path where the profile picture is saved.
         """
+        logging.info(f"Downloading image to {file_path}")
         try:
             img = element.find_element(by=By.XPATH, value=Locators.NewsArticle.PROF_PIC)
             self.http.download(img.get_attribute('src'), file_path)
+            logging.info(f"Image downloaded to {file_path}")
             return file_path
-        except NoSuchElementException as e:
+        except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
             logging.error(f"An error occurred in {self.__class__.__name__}.{self.download_images.__name__}: {str(e)}")
+            return None
 
     def download_excel_file(self) -> None:
-
         """Download news article data into an Excel file."""
+        logging.info("Downloading news articles data into an Excel file.")
         try:
             workbook = Workbook()
             exception_sheet = workbook.active
-
             exception_sheet.title = "Articles"
             exception_sheet.append(
                 ["Title", "Date", "Description", "ProfilePicture", "Phrase", "Amount"])
 
             for item in self.articles_list:
                 validated_item = ArticleModel(**item)
-
-                # Create a row with the validated data
                 row = [
                     validated_item.title,
                     validated_item.date,
@@ -141,10 +165,11 @@ class NewsBot(LosAngelesNews):
                     validated_item.amount
                 ]
                 exception_sheet.append(row)
-            # to store images and xlsx file in same folder
+
             output_dir = os.path.join(os.path.dirname(__file__), '..', 'output')
             os.makedirs(output_dir, exist_ok=True)
             workbook.save(os.path.join(output_dir, 'los-angeles-times.xlsx'))
+            logging.info("News articles data saved to Excel file.")
         except ErrorInDownloadException as e:
             logging.error(
                 f"An error occurred in {self.__class__.__name__}.{self.download_excel_file.__name__}: {str(e)}")
@@ -156,40 +181,44 @@ class NewsBot(LosAngelesNews):
         Returns:
             List[dict[str, str]]: A list of dictionaries representing the search results.
         """
+        logging.info(f"Fetching articles within date range {_range}.")
         try:
             articles = []
             date_range = get_date_range(_range)
-            start_date = datetime.strptime(date_range[0], '%Y-%m-%d').date()
-            end_date = datetime.strptime(date_range[1], '%Y-%m-%d').date()
+            till_date = datetime.strptime(date_range, '%Y-%m-%d').date()
 
-            # Lambda function to process articles and fetch the next page if within the limit
             fetch_page_articles = lambda page_num: (
                 self.articles_list.extend(
-                    self.process_page_articles(start_date, end_date, page_num)
+                    self.process_page_articles(till_date, page_num)
                 ),
                 self.fetch_next_page(_range, page_num, max_pages)
             )
 
-            # Process current page articles and decide whether to fetch the next page
-            download = fetch_page_articles(num_of_page)
-            if not download[0]:
+            fetch_page_articles(num_of_page)
+            if num_of_page == max_pages:
                 self.download_excel_file()
+            logging.info("Articles fetched and processed.")
             return articles
         except ErrorInFetchingArticles as e:
             logging.error(f"An error occurred in {self.__class__.__name__}.{self.fetch_articles.__name__}: {str(e)}")
+            return []
 
-    def process_page_articles(self, start_date, end_date, page_num) -> list[dict[str, str]]:
+    def process_page_articles(self, till_date, page_num) -> list[dict[str, str]]:
         """
         Process articles on the current page.
         """
+        logging.info(f"Processing articles on page {page_num}.")
         try:
             article_elements = self.browser.find_elements(Locators.Search.RESULTS)
             articles = []
 
             for num, element in enumerate(article_elements, start=(page_num - 1) * len(article_elements) + 1):
                 article_date_text = self.get_field_data(element, Locators.NewsArticle.DATE)
-                article_date = parse_date(article_date_text)
-                if start_date >= article_date >= end_date:
+                if article_date_text:
+                    article_date = parse_date(article_date_text)
+                else:
+                    continue
+                if till_date <= article_date:
                     img_name = f"output/article_{num}.jpeg"
                     title = self.get_field_data(element, Locators.NewsArticle.TITLE)
                     description = self.get_field_data(element, Locators.NewsArticle.DESCRIPTION)
@@ -203,21 +232,25 @@ class NewsBot(LosAngelesNews):
                     }
                     articles.append(article_data_map)
 
+            logging.info(f"Processed {len(articles)} articles on page {page_num}.")
             return articles
         except ErrorInFetchingArticles as e:
             logging.error(
                 f"An error occurred in {self.__class__.__name__}.{self.process_page_articles.__name__}: {str(e)}")
+            return []
 
     def fetch_next_page(self, _range, current_page, max_pages) -> None:
         """
         Fetch the next page if within the limit and continue fetching articles.
         """
         if current_page < max_pages:
+            logging.info(f"Fetching next page: {current_page + 1}")
             try:
                 next_page_button = self.browser.find_element(Locators.Search.NEXT_PAGE)
                 if next_page_button:
                     next_page_button.click()
                     self.fetch_articles(_range, current_page + 1, max_pages)
+                    logging.info(f"Next page {current_page + 1} fetched.")
             except NoSuchElementException as e:
                 logging.error(
-                    f"An error occurred in {self.__class__.__name__}.{self.fetch_next_page().__name__}: {str(e)}")
+                    f"An error occurred in {self.__class__.__name__}.{self.fetch_next_page.__name__}: {str(e)}")
