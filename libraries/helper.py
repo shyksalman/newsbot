@@ -4,6 +4,8 @@ import re
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from libraries.exceptions import NoMatchFoundError
+from dateutil import parser
+
 
 def get_date_range(term):
     today = datetime.today()
@@ -20,20 +22,22 @@ def get_work_item():
     return search_phrase, news_category, months
 
 
-def check_amount_phrase(item: dict):
+def check_amount_phrase(title: str, desc: str) -> dict:
     """
         Set the search phrase count and check if the article contains mentions of money.
 
         Args:
-            item (dict): Dictionary containing news article data.
-            :param item:
+            title (str): Title of the news article data.
+            desc (str): Description of the news article data.
+            :param title, desc:
     """
-    title_description = f'{item["title"]} {item["description"]}' if item.get("description") else item['title']
-    _phrase = get_work_item()
-    item["phrase"] = len(re.findall(_phrase[0], title_description, flags=re.IGNORECASE))
+    title_description = f'{title} {desc}' if desc else title
+    search_phrase = get_work_item()
+    phrase = len(re.findall(search_phrase[0], title_description, flags=re.IGNORECASE))
 
     amount_pattern = r'\$[0-9,]+(\.[0-9]+)?|\b[0-9]+ dollars\b|\b[0-9]+ USD\b'
-    item["amount"] = 'Yes' if re.search(amount_pattern, title_description) else 'No'
+    amount = 'Yes' if re.search(amount_pattern, title_description) else 'No'
+    return {"amount": amount, "phrase": phrase}
 
 
 def parse_date(date_text: str) -> date:
@@ -41,37 +45,13 @@ def parse_date(date_text: str) -> date:
         # Check if the date_text contains 'hours ago'
         if 'hour' in date_text:
             return datetime.now().date()
-
-        # Dynamically standardize month abbreviations
-        month_map = {
-            'Jan.': 'Jan', 'Feb.': 'Feb', 'Mar.': 'Mar', 'Apr.': 'Apr',
-            'Jun.': 'Jun', 'Jul.': 'Jul', 'Aug.': 'Aug', 'Sept.': 'Sep',
-            'Oct.': 'Oct', 'Nov.': 'Nov', 'Dec.': 'Dec'
-        }
-
-        # Replace any variations with standard abbreviations
-        for long_month, short_month in month_map.items():
-            if long_month in date_text:
-                date_text = date_text.replace(long_month, short_month)
-                break
-
-        # Try parsing absolute date formats
-        formats = [
-            '%B %d, %Y',
-            '%b %d, %Y',
-            '%b. %d, %Y',
-            '%d %b %Y',
-            '%d %B %Y'
-        ]
-
-        # Attempt to parse date with each format
-        for fmt in formats:
-            try:
-                return datetime.strptime(date_text, fmt).date()
-            except ValueError:
-                continue
-
-        # If none of the formats match, raise an error
-        raise NoMatchFoundError(f"Date format for {date_text} is not recognized")
+        elif 'min' in date_text:
+            return datetime.now().date()
+        else:
+            return parser.parse(date_text).date()
     except NoMatchFoundError as e:
         logging.error(f"An error occurred while parsing date {date_text}: {e}")
+
+
+if __name__ == "__main__":
+    check_amount_phrase("salman", "Imran Khan")

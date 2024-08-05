@@ -1,11 +1,15 @@
 import logging
+
+from libraries.exceptions import GeneralException
 from libraries.helper import get_work_item
-from task.process import LosAngelesNews
+from task.process import LosAngelesNews, NewsBot
+
+logging.basicConfig(level=logging.INFO)
 
 
 def main():
     try:
-        news = LosAngelesNews()
+        news = NewsBot()
         logging.info("Initializing bot successfully.")
         search_phrase, news_category, months = get_work_item()
         logging.info(f"Extracting {search_phrase, news_category, months} from env file")
@@ -19,7 +23,7 @@ def main():
         logging.info("Downloading Images and xlsx file successfully.")
         news.browser.close_all_browsers()
         logging.info("Closed all browser windows.")
-    except Exception as e:
+    except GeneralException as e:
         logging.error(e)
 
 

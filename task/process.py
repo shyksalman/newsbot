@@ -12,9 +12,12 @@ from selenium.webdriver.remote.webelement import WebElement
 from resources.locators import Locators
 from libraries.models import ArticleModel
 from libraries.helper import get_date_range, check_amount_phrase, parse_date
-from libraries.exceptions import ElementNotFoundException, ErrorInDownloadException, ErrorInFetchingArticles
+from libraries.exceptions import ErrorInDownloadException, ErrorInFetchingArticles
+from selenium.common.exceptions import NoSuchElementException, ElementNotVisibleException
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
 
 
 class LosAngelesNews:
@@ -32,16 +35,22 @@ class LosAngelesNews:
         self.browser = Selenium()
         self.http = HTTP()
         self.open_browser()
-        self.articles_list = []
 
     def open_browser(self) -> None:
         """
         Open a browser window and navigate to the given URL.
         """
-        try:
-            self.browser.open_available_browser(url="https://www.latimes.com/", maximized=True)
-        except ElementNotFoundException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+        self.browser.open_available_browser(url="https://www.latimes.com/", maximized=True)
+
+
+class NewsBot(LosAngelesNews):
+    """
+    This class interacts with the website latimes and extracts the images, data and stores it in xlsx file
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.articles_list = []
 
     def search_phrase(self, phrase: str) -> None:
         """
@@ -55,8 +64,8 @@ class LosAngelesNews:
             self.browser.click_button(Locators.Search.SUBMIT)
             self.browser.wait_until_page_contains_element(Locators.Search.RESULTS_FOR_TEXT)
             self.browser.does_page_contain_element(Locators.Search.NO_RESULTS.format(phrase=phrase))
-        except ElementNotFoundException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+        except NoSuchElementException as e:
+            logging.error(f"An error occurred in {self.__class__.__name__}.{self.search_phrase.__name__}: {str(e)}")
 
     def newest_sort_by(self) -> None:
         try:
@@ -64,20 +73,17 @@ class LosAngelesNews:
             self.browser.wait_until_element_is_visible(Locators.Sort.SELECT_OPTIONS, timeout=30)
             sorty = self.browser.find_element(Locators.Sort.SELECT_OPTIONS)
             sorty.find_element(By.XPATH, value=Locators.Sort.SELECT_OPTIONS_INPUT).click()
-        except ElementNotFoundException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+        except NoSuchElementException as e:
+            logging.error(f"An error occurred in {self.__class__.__name__}.{self.newest_sort_by.__name__}: {str(e)}")
 
     def select_category(self, news_category: str) -> None:
         try:
-            category = self.browser.find_element(Locators.Category.SEE_ALL)
-            category.click()
-            category = self.browser.find_element(Locators.Category.SELECT_CATEGORY.format(name=news_category))
-            category.click()
-        except ElementNotFoundException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+            category = self.browser.find_element(Locators.Category.SEE_ALL).click()
+            category = self.browser.find_element(Locators.Category.SELECT_CATEGORY.format(name=news_category)).click()
+        except NoSuchElementException as e:
+            logging.error(f"An error occurred in {self.__class__.__name__}.{self.select_category().__name__}: {str(e)}")
 
-    @staticmethod
-    def get_field_data(element: WebElement, locator) -> str:
+    def get_field_data(self, element: WebElement, locator) -> str:
         """
         Get text data from a WebElement based on a locator.
 
@@ -90,8 +96,8 @@ class LosAngelesNews:
         """
         try:
             return element.find_element(by=By.XPATH, value=locator).text
-        except ElementNotFoundException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+        except NoSuchElementException as e:
+            logging.error(f"An error occurred in {self.__class__.__name__}.{self.get_field_data.__name__}: {str(e)}")
 
     def download_images(self, element: WebElement, file_path) -> str:
         """
@@ -108,8 +114,8 @@ class LosAngelesNews:
             img = element.find_element(by=By.XPATH, value=Locators.NewsArticle.PROF_PIC)
             self.http.download(img.get_attribute('src'), file_path)
             return file_path
-        except ElementNotFoundException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+        except NoSuchElementException as e:
+            logging.error(f"An error occurred in {self.__class__.__name__}.{self.download_images.__name__}: {str(e)}")
 
     def download_excel_file(self) -> None:
 
@@ -140,7 +146,8 @@ class LosAngelesNews:
             os.makedirs(output_dir, exist_ok=True)
             workbook.save(os.path.join(output_dir, 'los-angeles-times.xlsx'))
         except ErrorInDownloadException as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+            logging.error(
+                f"An error occurred in {self.__class__.__name__}.{self.download_excel_file.__name__}: {str(e)}")
 
     def fetch_articles(self, _range, num_of_page=1, max_pages=3) -> list[Any]:
         """
@@ -169,7 +176,7 @@ class LosAngelesNews:
                 self.download_excel_file()
             return articles
         except ErrorInFetchingArticles as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+            logging.error(f"An error occurred in {self.__class__.__name__}.{self.fetch_articles.__name__}: {str(e)}")
 
     def process_page_articles(self, start_date, end_date, page_num) -> list[dict[str, str]]:
         """
@@ -184,18 +191,22 @@ class LosAngelesNews:
                 article_date = parse_date(article_date_text)
                 if start_date >= article_date >= end_date:
                     img_name = f"output/article_{num}.jpeg"
+                    title = self.get_field_data(element, Locators.NewsArticle.TITLE)
+                    description = self.get_field_data(element, Locators.NewsArticle.DESCRIPTION)
+                    title_desc = check_amount_phrase(title, description)
                     article_data_map = {
-                        "title": self.get_field_data(element, Locators.NewsArticle.TITLE),
+                        "title": title,
                         "date": article_date_text,
-                        "description": self.get_field_data(element, Locators.NewsArticle.DESCRIPTION),
-                        "profile_picture": self.download_images(element, img_name)
+                        "description": description,
+                        "profile_picture": self.download_images(element, img_name),
+                        **title_desc
                     }
-                    check_amount_phrase(article_data_map)
                     articles.append(article_data_map)
 
             return articles
         except ErrorInFetchingArticles as e:
-            logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+            logging.error(
+                f"An error occurred in {self.__class__.__name__}.{self.process_page_articles.__name__}: {str(e)}")
 
     def fetch_next_page(self, _range, current_page, max_pages) -> None:
         """
@@ -207,5 +218,6 @@ class LosAngelesNews:
                 if next_page_button:
                     next_page_button.click()
                     self.fetch_articles(_range, current_page + 1, max_pages)
-            except ElementNotFoundException as e:
-                logging.error(f"An error occurred in {self.__class__.__name__}.{self.open_browser.__name__}: {str(e)}")
+            except NoSuchElementException as e:
+                logging.error(
+                    f"An error occurred in {self.__class__.__name__}.{self.fetch_next_page().__name__}: {str(e)}")
