@@ -1,13 +1,19 @@
-import logging
 import os
 import re
 from datetime import datetime, date
-from functools import wraps
-
 from dateutil.relativedelta import relativedelta
+from selenium.common.exceptions import (
+    NoSuchElementException, TimeoutException, ElementNotVisibleException,
+    StaleElementReferenceException, ElementClickInterceptedException,
+    InvalidElementStateException
+)
+
+from functools import wraps
+import logging
 from libraries.exceptions import ParserError
 from dateutil import parser
 
+logging.basicConfig(level=logging.ERROR)
 
 def get_date_range(term):
     today = datetime.today()
@@ -56,10 +62,17 @@ def parse_date(date_text: str) -> date | None:
         return None
 
 
-def selenium_exception():
+def base_exception():
     def decorator(view_func):
         @wraps(view_func)
-        def _wrapped_view(self, request, *args, **kwargs):
-            return _wrapped_view
-    return decorator
+        def _wrapped_view(self, *args, **kwargs):
+            try:
+                return view_func(self, *args, **kwargs)
+            except (NoSuchElementException, TimeoutException, Exception,
+                    ElementNotVisibleException, StaleElementReferenceException,
+                    ElementClickInterceptedException, InvalidElementStateException) as e:
+                logging.error(f"An error occurred in {self.__class__.__name__}.{view_func.__name__}: {str(e)}")
+            return
+        return _wrapped_view
 
+    return decorator
