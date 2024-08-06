@@ -2,6 +2,8 @@ import logging
 import os
 import re
 from datetime import datetime, date
+from functools import wraps
+
 from dateutil.relativedelta import relativedelta
 from libraries.exceptions import ParserError
 from dateutil import parser
@@ -52,4 +54,12 @@ def parse_date(date_text: str) -> date | None:
     except ParserError as e:
         logging.error(f"An error occurred while parsing date {date_text}: {e}")
         return None
+
+
+def selenium_exception():
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(self, request, *args, **kwargs):
+            return _wrapped_view
+    return decorator
 

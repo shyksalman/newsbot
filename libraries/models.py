@@ -9,3 +9,4 @@ class ArticleModel(BaseModel):
     profile_picture: Optional[str] = ""
     phrase: Optional[int] = 0
     amount: Optional[str] = ""
+

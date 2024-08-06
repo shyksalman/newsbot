@@ -73,13 +73,12 @@ class NewsBot(LosAngelesNews):
             logging.info("Clicked on submit button.")
 
             self.browser.wait_until_page_contains_element(Locators.Search.RESULTS_FOR_TEXT)
-            self.browser.does_page_contain_element(Locators.Search.NO_RESULTS.format(phrase=phrase))
+            # self.browser.does_page_contain_element(Locators.Search.NO_RESULTS.format(phrase=phrase))
             logging.info(f"Searched results for phrase: {phrase}")
         except (NoSuchElementException, TimeoutException,
                 ElementNotVisibleException, StaleElementReferenceException,
                 ElementClickInterceptedException, InvalidElementStateException) as e:
             logging.error(f"An error occurred in {self.__class__.__name__}.{self.search_phrase.__name__}: {str(e)}")
-
 
     def newest_sort_by(self) -> None:
         """
@@ -213,22 +212,20 @@ class NewsBot(LosAngelesNews):
             articles = []
 
             for num, element in enumerate(article_elements, start=(page_num - 1) * len(article_elements) + 1):
-                article_date_text = self.get_field_data(element, Locators.NewsArticle.DATE)
-                if article_date_text:
-                    article_date = parse_date(article_date_text)
-                else:
+                # article_date_text = self.get_field_data(element, Locators.NewsArticle.DATE)
+                if not (article_date_text := self.get_field_data(element, Locators.NewsArticle.DATE)):
                     continue
+                article_date = parse_date(article_date_text)
                 if till_date <= article_date:
                     img_name = f"output/article_{num}.jpeg"
                     title = self.get_field_data(element, Locators.NewsArticle.TITLE)
                     description = self.get_field_data(element, Locators.NewsArticle.DESCRIPTION)
-                    title_desc = check_amount_phrase(title, description)
                     article_data_map = {
                         "title": title,
                         "date": article_date_text,
                         "description": description,
                         "profile_picture": self.download_images(element, img_name),
-                        **title_desc
+                        **check_amount_phrase(title, description)
                     }
                     articles.append(article_data_map)
 
