@@ -12,9 +12,6 @@ from selenium.webdriver.remote.webelement import WebElement
 from resources.locators import Locators
 from libraries.models import ArticleModel
 from libraries.helper import get_date_range, check_amount_phrase, parse_date, base_exception
-from libraries.exceptions import ErrorInDownloadException, ErrorInFetchingArticles
-from selenium.common.exceptions import NoSuchElementException, ElementNotVisibleException, \
-    StaleElementReferenceException, TimeoutException, ElementClickInterceptedException, InvalidElementStateException
 
 load_dotenv()
 
@@ -196,7 +193,6 @@ class LosAngelesNews(BaseScrapper):
         articles = []
 
         for num, element in enumerate(article_elements, start=(page_num - 1) * len(article_elements) + 1):
-            # article_date_text = self.get_field_data(element, Locators.NewsArticle.DATE)
             if not (article_date_text := self.get_field_data(element, Locators.NewsArticle.DATE)):
                 continue
             article_date = parse_date(article_date_text)

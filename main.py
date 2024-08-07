@@ -1,8 +1,6 @@
 import logging
-
-from libraries.exceptions import GeneralException
 from libraries.helper import get_work_item
-from task.process import LosAngelesNews, BaseScrapper
+from task.process import LosAngelesNews
 
 logging.basicConfig(level=logging.INFO)
 
@@ -11,7 +9,6 @@ def main():
     try:
         search_phrase, news_category, months = get_work_item()
         news = LosAngelesNews(phrase=search_phrase, news_category=news_category, months=months)
-
         news.search_phrase()
         news.newest_sort_by()
         news.select_category()

@@ -26,7 +26,7 @@ def get_date_range(term):
 def get_work_item():
     search_phrase = os.getenv('SEARCH_PHRASE', 'Imran Khan')
     news_category = os.getenv('CATEGORY', 'Awards')
-    months = int(os.getenv('RANGE'))
+    months = int(os.getenv('RANGE', 0))
     return search_phrase, news_category, months
 
 
