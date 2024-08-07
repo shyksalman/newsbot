@@ -68,7 +68,7 @@ def base_exception():
         def _wrapped_view(self, *args, **kwargs):
             try:
                 return view_func(self, *args, **kwargs)
-            except (NoSuchElementException, TimeoutException, Exception,
+            except (NoSuchElementException, TimeoutException, AssertionError,
                     ElementNotVisibleException, StaleElementReferenceException,
                     ElementClickInterceptedException, InvalidElementStateException) as e:
                 logging.error(f"An error occurred in {self.__class__.__name__}.{view_func.__name__}: {str(e)}")
