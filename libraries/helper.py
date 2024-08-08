@@ -1,77 +1,78 @@
-import logging
 import os
 import re
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
-from libraries.exceptions import NoMatchFoundError
+from selenium.common.exceptions import (
+    NoSuchElementException, TimeoutException, ElementNotVisibleException,
+    StaleElementReferenceException, ElementClickInterceptedException,
+    InvalidElementStateException
+)
+
+from functools import wraps
+import logging
+from libraries.exceptions import ParserError
+from dateutil import parser
+
+logging.basicConfig(level=logging.ERROR)
 
 def get_date_range(term):
     today = datetime.today()
     start_date = today.replace(day=1)
     end_date = (start_date - relativedelta(months=term - 1)).replace(day=1) if term > 1 else start_date
     end_date = end_date + relativedelta(months=1) - relativedelta(days=1)
-    return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
+    return end_date.strftime('%Y-%m-%d')
 
 
 def get_work_item():
     search_phrase = os.getenv('SEARCH_PHRASE', 'Imran Khan')
     news_category = os.getenv('CATEGORY', 'Awards')
-    months = int(os.getenv('RANGE'))
+    months = int(os.getenv('RANGE', 0))
     return search_phrase, news_category, months
 
 
-def check_amount_phrase(item: dict):
+def check_amount_phrase(title: str, desc: str) -> dict:
     """
         Set the search phrase count and check if the article contains mentions of money.
 
         Args:
-            item (dict): Dictionary containing news article data.
-            :param item:
+            title (str): Title of the news article data.
+            desc (str): Description of the news article data.
+            :param title, desc:
     """
-    title_description = f'{item["title"]} {item["description"]}' if item.get("description") else item['title']
-    _phrase = get_work_item()
-    item["phrase"] = len(re.findall(_phrase[0], title_description, flags=re.IGNORECASE))
+    title_description = f'{title} {desc}' if desc else title
+    search_phrase = get_work_item()
+    phrase = len(re.findall(search_phrase[0], title_description, flags=re.IGNORECASE))
 
     amount_pattern = r'\$[0-9,]+(\.[0-9]+)?|\b[0-9]+ dollars\b|\b[0-9]+ USD\b'
-    item["amount"] = 'Yes' if re.search(amount_pattern, title_description) else 'No'
+    amount = 'Yes' if re.search(amount_pattern, title_description) else 'No'
+    return {"amount": amount, "phrase": phrase}
 
 
-def parse_date(date_text: str) -> date:
+def parse_date(date_text: str) -> date | None:
     try:
         # Check if the date_text contains 'hours ago'
         if 'hour' in date_text:
             return datetime.now().date()
-
-        # Dynamically standardize month abbreviations
-        month_map = {
-            'Jan.': 'Jan', 'Feb.': 'Feb', 'Mar.': 'Mar', 'Apr.': 'Apr',
-            'Jun.': 'Jun', 'Jul.': 'Jul', 'Aug.': 'Aug', 'Sept.': 'Sep',
-            'Oct.': 'Oct', 'Nov.': 'Nov', 'Dec.': 'Dec'
-        }
-
-        # Replace any variations with standard abbreviations
-        for long_month, short_month in month_map.items():
-            if long_month in date_text:
-                date_text = date_text.replace(long_month, short_month)
-                break
-
-        # Try parsing absolute date formats
-        formats = [
-            '%B %d, %Y',
-            '%b %d, %Y',
-            '%b. %d, %Y',
-            '%d %b %Y',
-            '%d %B %Y'
-        ]
-
-        # Attempt to parse date with each format
-        for fmt in formats:
-            try:
-                return datetime.strptime(date_text, fmt).date()
-            except ValueError:
-                continue
-
-        # If none of the formats match, raise an error
-        raise NoMatchFoundError(f"Date format for {date_text} is not recognized")
-    except NoMatchFoundError as e:
+        elif 'min' in date_text:
+            return datetime.now().date()
+        else:
+            return parser.parse(date_text).date()
+    except ParserError as e:
         logging.error(f"An error occurred while parsing date {date_text}: {e}")
+        return None
+
+
+def catch_exception():
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(self, *args, **kwargs):
+            try:
+                return view_func(self, *args, **kwargs)
+            except (NoSuchElementException, TimeoutException, AssertionError,
+                    ElementNotVisibleException, StaleElementReferenceException,
+                    ElementClickInterceptedException, InvalidElementStateException) as e:
+                logging.error(f"An error occurred in {self.__class__.__name__}.{view_func.__name__}: {str(e)}")
+            return
+        return _wrapped_view
+
+    return decorator

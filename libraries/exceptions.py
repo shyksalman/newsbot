@@ -1,18 +1,2 @@
-class ElementNotFoundException(Exception):
-    ...
-
-
-class ElementNotVisibleException(Exception):
-    ...
-
-
-class ErrorInFetchingArticles(Exception):
-    ...
-
-
-class ErrorInDownloadException(Exception):
-    ...
-
-
-class NoMatchFoundError(ValueError):
-    ...
+class ParserError(ValueError):
+    """Exception subclass used for any failure to parse a datetime string."""
