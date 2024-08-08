@@ -62,7 +62,7 @@ def parse_date(date_text: str) -> date | None:
         return None
 
 
-def base_exception():
+def catch_exception():
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(self, *args, **kwargs):

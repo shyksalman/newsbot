@@ -11,7 +11,7 @@ from selenium.webdriver.remote.webelement import WebElement
 
 from resources.locators import Locators
 from libraries.models import ArticleModel
-from libraries.helper import get_date_range, check_amount_phrase, parse_date, base_exception
+from libraries.helper import get_date_range, check_amount_phrase, parse_date, catch_exception
 
 load_dotenv()
 
@@ -30,7 +30,7 @@ class BaseScrapper:
         self.http = HTTP()
         self.open_browser()
 
-    @base_exception()
+    @catch_exception()
     def open_browser(self) -> None:
         """
         Open a browser window and navigate to the given URL.
@@ -57,7 +57,7 @@ class LosAngelesNews(BaseScrapper):
         self.news_category = news_category
         self.months = months
 
-    @base_exception()
+    @catch_exception()
     def search_phrase(self) -> None:
         """
         Search for the given phrase and navigate to the results.
@@ -75,10 +75,9 @@ class LosAngelesNews(BaseScrapper):
         logging.info("Clicked on submit button.")
 
         self.browser.wait_until_page_contains_element(Locators.Search.RESULTS_FOR_TEXT)
-        # self.browser.does_page_contain_element(Locators.Search.NO_RESULTS.format(phrase=phrase))
         logging.info(f"Searched results for phrase: {self.phrase}")
 
-    @base_exception()
+    @catch_exception()
     def newest_sort_by(self) -> None:
         """
         Sort search results by latest.
@@ -89,14 +88,14 @@ class LosAngelesNews(BaseScrapper):
         sorty.find_element(By.XPATH, value=Locators.Sort.SELECT_OPTIONS_INPUT).click()
         logging.info("Sorted search results by latest.")
 
-    @base_exception()
+    @catch_exception()
     def select_category(self) -> None:
         logging.info(f"Selecting news category: {self.news_category}")
         self.browser.find_element(Locators.Category.SEE_ALL).click()
         self.browser.find_element(Locators.Category.SELECT_CATEGORY.format(name=self.news_category)).click()
         logging.info(f"Selected news category: {self.news_category}")
 
-    @base_exception()
+    @catch_exception()
     def get_field_data(self, element: WebElement, locator) -> str | None:
         """
         Get text data from a WebElement based on a locator.
@@ -113,7 +112,7 @@ class LosAngelesNews(BaseScrapper):
         logging.info(f"Retrieved data: {data}")
         return data
 
-    @base_exception()
+    @catch_exception()
     def download_images(self, element: WebElement, file_path) -> str | None:
         """
         Download the profile picture associated with a news article.
@@ -131,7 +130,7 @@ class LosAngelesNews(BaseScrapper):
         logging.info(f"Image downloaded to {file_path}")
         return file_path
 
-    @base_exception()
+    @catch_exception()
     def download_excel_file(self) -> None:
         """Download news article data into an Excel file."""
         logging.info("Downloading news articles data into an Excel file.")
@@ -158,7 +157,7 @@ class LosAngelesNews(BaseScrapper):
         workbook.save(os.path.join(output_dir, 'los-angeles-times.xlsx'))
         logging.info("News articles data saved to Excel file.")
 
-    @base_exception()
+    @catch_exception()
     def fetch_articles(self, num_of_page=1, max_pages=3) -> list[Any]:
         """
         Get news article data from the search results within a given date range.
@@ -183,7 +182,7 @@ class LosAngelesNews(BaseScrapper):
         logging.info("Articles fetched and processed.")
         return articles
 
-    @base_exception()
+    @catch_exception()
     def process_page_articles(self, till_date, page_num) -> list[dict[str, str]]:
         """
         Process articles on the current page.
@@ -212,7 +211,7 @@ class LosAngelesNews(BaseScrapper):
         logging.info(f"Processed {len(articles)} articles on page {page_num}.")
         return articles
 
-    @base_exception()
+    @catch_exception()
     def fetch_next_page(self, current_page, max_pages) -> None:
         """
         Fetch the next page if within the limit and continue fetching articles.
